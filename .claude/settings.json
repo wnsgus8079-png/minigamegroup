@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat > /dev/null; git -C \"C:/Users/wnsgu/Claude\" add -A && (git -C \"C:/Users/wnsgu/Claude\" diff --cached --quiet || (git -C \"C:/Users/wnsgu/Claude\" commit -m \"Auto-commit: $(date \"+%Y-%m-%d %H:%M:%S\")\" && git -C \"C:/Users/wnsgu/Claude\" push origin main)) 2>&1",
+            "shell": "bash",
+            "statusMessage": "Auto-committing changes to GitHub..."
+          }
+        ]
+      }
+    ]
+  }
+}
