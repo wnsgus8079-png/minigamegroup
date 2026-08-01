@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>틱택토</title>
+<style>
+  :root {
+    --bg: #1e1e2e;
+    --panel: #2a2a3c;
+    --cell: #3a3a52;
+    --cell-hover: #47476a;
+    --cell-revealed: #12121c;
+    --border: #4a4a6a;
+    --accent: #7aa2f7;
+    --text: #e0e0f0;
+    --danger: #f7768e;
+    --success: #9ece6a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 16px;
+  }
+  .home-link {
+    align-self: flex-start;
+    margin: 0 0 12px;
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 14px;
+  }
+  .home-link:hover { text-decoration: underline; }
+  h1 { margin: 0 0 12px; font-size: 24px; letter-spacing: 1px; }
+  .panel {
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+    background: var(--cell-revealed);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  #turn {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  #turn.x { color: var(--accent); }
+  #turn.o { color: var(--danger); }
+  #restart {
+    background: var(--cell);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  #restart:hover { background: var(--cell-hover); }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(3, 84px);
+    gap: 6px;
+    background: var(--border);
+    border: 3px solid var(--border);
+    border-radius: 6px;
+  }
+  .cell {
+    width: 84px;
+    height: 84px;
+    background: var(--cell);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    font-weight: 800;
+    cursor: pointer;
+    user-select: none;
+    border-radius: 4px;
+  }
+  .cell:hover:not(.filled) { background: var(--cell-hover); }
+  .cell.filled { cursor: default; }
+  .cell.x { color: var(--accent); }
+  .cell.o { color: var(--danger); }
+  .cell.win { background: var(--cell-revealed); outline: 2px solid var(--success); }
+  #message {
+    text-align: center;
+    margin-top: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    min-height: 22px;
+  }
+  #message.win { color: var(--success); }
+  #message.draw { color: #e0af68; }
+</style>
+</head>
+<body>
+  <a class="home-link" href="../index.html">← 홈으로</a>
+  <h1>⭕ 틱택토</h1>
+  <div class="panel">
+    <div class="toolbar">
+      <div id="turn" class="x">X 차례</div>
+      <button id="restart">다시 시작</button>
+    </div>
+    <div id="board"></div>
+    <div id="message"></div>
+  </div>
+
+<script>
+(function () {
+  const boardEl = document.getElementById('board');
+  const turnEl = document.getElementById('turn');
+  const messageEl = document.getElementById('message');
+  const restartBtn = document.getElementById('restart');
+
+  const WIN_LINES = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6],
+  ];
+
+  let cells = [];
+  let board = Array(9).fill(null);
+  let current = 'X';
+  let gameOver = false;
+
+  function init() {
+    board = Array(9).fill(null);
+    current = 'X';
+    gameOver = false;
+    messageEl.textContent = '';
+    messageEl.className = '';
+    updateTurn();
+
+    boardEl.innerHTML = '';
+    cells = [];
+    for (let i = 0; i < 9; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.addEventListener('click', () => onClick(i));
+      boardEl.appendChild(cell);
+      cells.push(cell);
+    }
+  }
+
+  function updateTurn() {
+    turnEl.textContent = current + ' 차례';
+    turnEl.className = current.toLowerCase();
+  }
+
+  function onClick(i) {
+    if (gameOver || board[i]) return;
+    board[i] = current;
+    const cell = cells[i];
+    cell.textContent = current;
+    cell.classList.add('filled', current.toLowerCase());
+
+    const line = checkWin(current);
+    if (line) {
+      endGame(line);
+      return;
+    }
+    if (board.every(v => v)) {
+      endDraw();
+      return;
+    }
+    current = current === 'X' ? 'O' : 'X';
+    updateTurn();
+  }
+
+  function checkWin(player) {
+    for (const line of WIN_LINES) {
+      if (line.every(i => board[i] === player)) return line;
+    }
+    return null;
+  }
+
+  function endGame(line) {
+    gameOver = true;
+    line.forEach(i => cells[i].classList.add('win'));
+    messageEl.textContent = `${current} 승리했습니다! 🎉`;
+    messageEl.className = 'win';
+  }
+
+  function endDraw() {
+    gameOver = true;
+    messageEl.textContent = '무승부입니다.';
+    messageEl.className = 'draw';
+  }
+
+  restartBtn.addEventListener('click', init);
+
+  init();
+})();
+</script>
+</body>
+</html>

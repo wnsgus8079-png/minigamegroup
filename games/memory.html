@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>카드 짝맞추기</title>
+<style>
+  :root {
+    --bg: #1e1e2e;
+    --panel: #2a2a3c;
+    --cell: #3a3a52;
+    --cell-hover: #47476a;
+    --cell-revealed: #12121c;
+    --border: #4a4a6a;
+    --accent: #7aa2f7;
+    --text: #e0e0f0;
+    --danger: #f7768e;
+    --success: #9ece6a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 16px;
+  }
+  .home-link {
+    align-self: flex-start;
+    margin: 0 0 12px;
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 14px;
+  }
+  .home-link:hover { text-decoration: underline; }
+  h1 { margin: 0 0 12px; font-size: 24px; letter-spacing: 1px; }
+  .panel {
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    background: var(--cell-revealed);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  .stat { font-size: 16px; font-weight: 600; color: var(--accent); }
+  #restart {
+    background: var(--cell);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  #restart:hover { background: var(--cell-hover); }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(4, 70px);
+    gap: 8px;
+  }
+  .card {
+    width: 70px;
+    height: 70px;
+    background: var(--cell);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+  }
+  .card:hover:not(.flipped):not(.matched) { background: var(--cell-hover); }
+  .card.flipped, .card.matched {
+    background: var(--cell-revealed);
+  }
+  .card.matched {
+    outline: 2px solid var(--success);
+    cursor: default;
+  }
+  .card .face {
+    display: none;
+  }
+  .card.flipped .face, .card.matched .face {
+    display: block;
+  }
+  #message {
+    text-align: center;
+    margin-top: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    min-height: 22px;
+  }
+  #message.win { color: var(--success); }
+</style>
+</head>
+<body>
+  <a class="home-link" href="../index.html">← 홈으로</a>
+  <h1>🃏 카드 짝맞추기</h1>
+  <div class="panel">
+    <div class="toolbar">
+      <div class="stat">시도: <span id="tries">0</span></div>
+      <button id="restart">다시 시작</button>
+    </div>
+    <div id="board"></div>
+    <div id="message"></div>
+  </div>
+
+<script>
+(function () {
+  const EMOJIS = ['🍎','🍌','🍇','🍉','🍒','🍋','🍓','🥝'];
+  const boardEl = document.getElementById('board');
+  const triesEl = document.getElementById('tries');
+  const messageEl = document.getElementById('message');
+  const restartBtn = document.getElementById('restart');
+
+  let cards, flipped, matchedCount, tries, locked;
+
+  function init() {
+    const deck = [...EMOJIS, ...EMOJIS];
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    flipped = [];
+    matchedCount = 0;
+    tries = 0;
+    locked = false;
+    triesEl.textContent = '0';
+    messageEl.textContent = '';
+    messageEl.className = '';
+
+    boardEl.innerHTML = '';
+    cards = deck.map((emoji, i) => {
+      const el = document.createElement('div');
+      el.className = 'card';
+      const face = document.createElement('span');
+      face.className = 'face';
+      face.textContent = emoji;
+      el.appendChild(face);
+      el.addEventListener('click', () => onFlip(i));
+      boardEl.appendChild(el);
+      return { emoji, el, matched: false };
+    });
+  }
+
+  function onFlip(i) {
+    if (locked) return;
+    const c = cards[i];
+    if (c.matched || c.el.classList.contains('flipped')) return;
+    if (flipped.length >= 2) return;
+
+    c.el.classList.add('flipped');
+    flipped.push(i);
+
+    if (flipped.length === 2) {
+      tries += 1;
+      triesEl.textContent = String(tries);
+      const [a, b] = flipped;
+      if (cards[a].emoji === cards[b].emoji) {
+        cards[a].matched = true;
+        cards[b].matched = true;
+        cards[a].el.classList.add('matched');
+        cards[b].el.classList.add('matched');
+        flipped = [];
+        matchedCount += 2;
+        if (matchedCount === cards.length) {
+          messageEl.textContent = `모두 맞췄습니다! 시도 횟수: ${tries} 🎉`;
+          messageEl.className = 'win';
+        }
+      } else {
+        locked = true;
+        setTimeout(() => {
+          cards[a].el.classList.remove('flipped');
+          cards[b].el.classList.remove('flipped');
+          flipped = [];
+          locked = false;
+        }, 800);
+      }
+    }
+  }
+
+  restartBtn.addEventListener('click', init);
+
+  init();
+})();
+</script>
+</body>
+</html>

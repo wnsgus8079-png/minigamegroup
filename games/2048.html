@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2048</title>
+<style>
+  :root {
+    --bg: #1e1e2e;
+    --panel: #2a2a3c;
+    --cell: #3a3a52;
+    --cell-hover: #47476a;
+    --cell-revealed: #12121c;
+    --border: #4a4a6a;
+    --accent: #7aa2f7;
+    --text: #e0e0f0;
+    --danger: #f7768e;
+    --success: #9ece6a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 16px;
+  }
+  .home-link {
+    align-self: flex-start;
+    margin: 0 0 12px;
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 14px;
+  }
+  .home-link:hover { text-decoration: underline; }
+  h1 { margin: 0 0 12px; font-size: 24px; letter-spacing: 1px; }
+  .panel {
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    background: var(--cell-revealed);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  .stat { font-size: 16px; font-weight: 600; color: var(--accent); }
+  #restart {
+    background: var(--cell);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  #restart:hover { background: var(--cell-hover); }
+  #board {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(4, 70px);
+    grid-template-rows: repeat(4, 70px);
+    gap: 8px;
+    background: var(--border);
+    border: 3px solid var(--border);
+    border-radius: 6px;
+    padding: 0;
+  }
+  .cell-bg {
+    width: 70px;
+    height: 70px;
+    background: var(--cell-revealed);
+    border-radius: 6px;
+  }
+  .tile {
+    position: absolute;
+    width: 70px;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    font-weight: 800;
+    border-radius: 6px;
+    background: var(--cell);
+    color: var(--text);
+    transition: top 0.1s ease, left 0.1s ease;
+  }
+  .tile.v2 { background: #3a3a52; }
+  .tile.v4 { background: #47476a; }
+  .tile.v8 { background: #7aa2f7; color: #12121c; }
+  .tile.v16 { background: #64b5f6; color: #12121c; }
+  .tile.v32 { background: #f7768e; color: #12121c; }
+  .tile.v64 { background: #ff6b81; color: #12121c; }
+  .tile.v128 { background: #e0af68; color: #12121c; font-size: 22px; }
+  .tile.v256 { background: #f0c674; color: #12121c; font-size: 22px; }
+  .tile.v512 { background: #9ece6a; color: #12121c; font-size: 22px; }
+  .tile.v1024 { background: #7dcfff; color: #12121c; font-size: 18px; }
+  .tile.v2048 { background: #bb9af7; color: #12121c; font-size: 18px; }
+  #message {
+    text-align: center;
+    margin-top: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    min-height: 22px;
+  }
+  #message.win { color: var(--success); }
+  #message.lose { color: var(--danger); }
+  .hint {
+    text-align: center;
+    font-size: 12px;
+    color: #8a8aa0;
+    margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+  <a class="home-link" href="../index.html">← 홈으로</a>
+  <h1>🔢 2048</h1>
+  <div class="panel">
+    <div class="toolbar">
+      <div class="stat">점수: <span id="score">0</span></div>
+      <button id="restart">다시 시작</button>
+    </div>
+    <div id="board"></div>
+    <div id="message"></div>
+    <div class="hint">방향키로 타일을 이동해 같은 숫자를 합쳐보세요</div>
+  </div>
+
+<script>
+(function () {
+  const SIZE = 4;
+  const boardEl = document.getElementById('board');
+  const scoreEl = document.getElementById('score');
+  const messageEl = document.getElementById('message');
+  const restartBtn = document.getElementById('restart');
+
+  let grid, score, gameOver, won;
+
+  function init() {
+    grid = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
+    score = 0;
+    gameOver = false;
+    won = false;
+    scoreEl.textContent = '0';
+    messageEl.textContent = '';
+    messageEl.className = '';
+    addRandomTile();
+    addRandomTile();
+    render();
+  }
+
+  function addRandomTile() {
+    const empty = [];
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        if (grid[r][c] === 0) empty.push([r, c]);
+      }
+    }
+    if (empty.length === 0) return;
+    const [r, c] = empty[Math.floor(Math.random() * empty.length)];
+    grid[r][c] = Math.random() < 0.9 ? 2 : 4;
+  }
+
+  function render() {
+    boardEl.innerHTML = '';
+    for (let i = 0; i < SIZE * SIZE; i++) {
+      const bg = document.createElement('div');
+      bg.className = 'cell-bg';
+      boardEl.appendChild(bg);
+    }
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        const v = grid[r][c];
+        if (v === 0) continue;
+        const tile = document.createElement('div');
+        tile.className = 'tile v' + (v <= 2048 ? v : 2048);
+        tile.textContent = v;
+        tile.style.left = (c * 78) + 'px';
+        tile.style.top = (r * 78) + 'px';
+        boardEl.appendChild(tile);
+      }
+    }
+    scoreEl.textContent = String(score);
+  }
+
+  function slideRowLeft(row) {
+    const vals = row.filter(v => v !== 0);
+    const result = [];
+    let moved = false;
+    let i = 0;
+    while (i < vals.length) {
+      if (i + 1 < vals.length && vals[i] === vals[i + 1]) {
+        const merged = vals[i] * 2;
+        result.push(merged);
+        score += merged;
+        if (merged === 2048) won = true;
+        i += 2;
+      } else {
+        result.push(vals[i]);
+        i += 1;
+      }
+    }
+    while (result.length < SIZE) result.push(0);
+    for (let k = 0; k < SIZE; k++) {
+      if (result[k] !== row[k]) moved = true;
+    }
+    return { row: result, moved };
+  }
+
+  function getColumn(c) {
+    return grid.map(row => row[c]);
+  }
+  function setColumn(c, values) {
+    for (let r = 0; r < SIZE; r++) grid[r][c] = values[r];
+  }
+
+  function move(direction) {
+    if (gameOver) return;
+    let moved = false;
+
+    if (direction === 'left') {
+      for (let r = 0; r < SIZE; r++) {
+        const { row, moved: m } = slideRowLeft(grid[r]);
+        grid[r] = row;
+        moved = moved || m;
+      }
+    } else if (direction === 'right') {
+      for (let r = 0; r < SIZE; r++) {
+        const reversed = grid[r].slice().reverse();
+        const { row, moved: m } = slideRowLeft(reversed);
+        grid[r] = row.reverse();
+        moved = moved || m;
+      }
+    } else if (direction === 'up') {
+      for (let c = 0; c < SIZE; c++) {
+        const { row, moved: m } = slideRowLeft(getColumn(c));
+        setColumn(c, row);
+        moved = moved || m;
+      }
+    } else if (direction === 'down') {
+      for (let c = 0; c < SIZE; c++) {
+        const reversed = getColumn(c).slice().reverse();
+        const { row, moved: m } = slideRowLeft(reversed);
+        setColumn(c, row.reverse());
+        moved = moved || m;
+      }
+    }
+
+    if (!moved) return;
+    addRandomTile();
+    render();
+
+    if (won) {
+      endGame(true);
+      return;
+    }
+    if (!hasMovesLeft()) {
+      endGame(false);
+    }
+  }
+
+  function hasMovesLeft() {
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        if (grid[r][c] === 0) return true;
+        if (c + 1 < SIZE && grid[r][c] === grid[r][c + 1]) return true;
+        if (r + 1 < SIZE && grid[r][c] === grid[r + 1][c]) return true;
+      }
+    }
+    return false;
+  }
+
+  function endGame(isWin) {
+    gameOver = true;
+    messageEl.textContent = isWin ? '2048을 만들었습니다! 🎉' : '더 이상 이동할 수 없습니다.';
+    messageEl.className = isWin ? 'win' : 'lose';
+  }
+
+  document.addEventListener('keydown', (e) => {
+    const map = {
+      ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',
+    };
+    const dir = map[e.key];
+    if (!dir) return;
+    e.preventDefault();
+    move(dir);
+  });
+
+  restartBtn.addEventListener('click', init);
+
+  init();
+})();
+</script>
+</body>
+</html>
